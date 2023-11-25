@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  api:
+    build: ./app
+    restart: unless-stopped
+    depends_on:
+      - redis
+    env_file:
+      - ./app/.env
+    volumes:
+      - ./output_files:/output_files
+      - ./app:/server
+      - files_volumes:/files
+    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
+    ports:
+      - 8000:8000
+
+  front:
+    restart: unless-stopped
+    build: front
+    ports:
+      - 8080:80
+    volumes:
+      - ./front/nginx:/etc/nginx/conf.d
+
+  celery-worker:
+    restart: unless-stopped
+    depends_on:
+      - redis
+    build:
+      context: ./app
+      dockerfile: Dockerfile.gpu
+    env_file:
+      - ./app/.env
+    volumes:
+      - files_volumes:/files
+      - ./output_files:/output_files
+      - ~/models:/root/.cache/whisper
+      - ~/.cache/huggingface:/root/.cache/huggingface
+    deploy:
+      replicas: 1
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              capabilities: [gpu]
+    command: celery -A worker.celery worker --pool=solo --loglevel=info
+
+  redis:
+    image: redis
+    restart: unless-stopped
+    container_name: redis
+
+volumes:
+  files_volumes:

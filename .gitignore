@@ -1,0 +1,11 @@
+*.DS_Store
+*.vscode
+*.env
+*.venv/
+*__pycache__/
+*data/
+*kubeconfig
+*templates/
+models/*
+pyrightconfig.json
+whisper/

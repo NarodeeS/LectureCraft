@@ -1,0 +1,31 @@
+FROM nvidia/cuda:12.0.1-base-ubuntu22.04
+
+ENV PYTHON_VERSION=3.10
+
+WORKDIR /workspace
+
+RUN export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -qq update \
+    && apt-get -qq install --no-install-recommends \
+    git \
+    ffmpeg \
+    build-essential \
+    python${PYTHON_VERSION} \
+    python${PYTHON_VERSION}-venv \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt requirements.txt
+
+RUN pip3 install -r requirements.txt  \
+    && mkdir /files
+
+ENV TRANSFORMERS_CACHE=/root/.cache/huggingface/hub
+
+RUN pip3 install cuda-python langchain scipy sentencepiece
+
+RUN pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+
+COPY . .
+
+CMD ["celery", "-A", "worker.celery", "worker", "--loglevel", "info"]
